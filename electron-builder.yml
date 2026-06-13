@@ -1,0 +1,25 @@
+# electron-builder is used ONLY to wrap the already-packaged app (produced by
+# `electron-forge package` into out/orccode-win32-x64) into a standard NSIS
+# installer wizard. Forge still owns the Vite build + asar/Fuses packaging; see
+# the `build:win` script in package.json (`electron-builder --prepackaged ...`).
+appId: com.orccode.app
+productName: orccode
+directories:
+  output: dist # kept separate from Forge's out/; already in .gitignore
+win:
+  icon: assets/icon.ico
+  target:
+    - nsis     # 向导式安装包  → dist/orccode-1.0.0-setup.exe
+    - zip      # 免安装 zip 包 → dist/orccode-1.0.0-win.zip
+    - portable # 单文件绿色版  → dist/orccode-1.0.0-portable.exe
+nsis:
+  oneClick: false # assisted wizard (welcome/license/dir pages), not silent one-click
+  perMachine: false # per-user install, no UAC prompt (set true for all-users)
+  allowToChangeInstallationDirectory: true # "choose install folder" page
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: orccode
+  license: build/license.txt # license agreement page (txt/rtf/html only)
+  installerIcon: assets/icon.ico
+  uninstallerIcon: assets/icon.ico
+  artifactName: ${productName}-${version}-setup.${ext}

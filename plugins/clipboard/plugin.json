@@ -1,0 +1,43 @@
+{
+  "id": "clipboard",
+  "name": "剪贴板历史",
+  "version": "1.0.0",
+  "type": "view",
+  "entry": "index.js",
+  "ui": "ui/index.html",
+  "icon": "icon.svg",
+  "description": "记录并搜索最近复制的文本,回车重新复制。",
+  "keywords": ["clip", "clipboard", "剪贴板", "剪切板"],
+  "config": [
+    {
+      "key": "maxItems",
+      "type": "number",
+      "label": "历史记录上限",
+      "description": "最多保留多少条剪贴板记录(10–1000)。",
+      "default": 100,
+      "min": 10,
+      "max": 1000,
+      "step": 10
+    },
+    {
+      "key": "pollMs",
+      "type": "number",
+      "label": "轮询间隔(毫秒)",
+      "description": "检查剪贴板变化的频率,值越小越灵敏但更耗电(200–5000)。",
+      "default": 1000,
+      "min": 200,
+      "max": 5000,
+      "step": 100
+    },
+    {
+      "key": "maxTextLen",
+      "type": "number",
+      "label": "单条最大长度(字符)",
+      "description": "超过该长度的剪贴板内容不会被记录。",
+      "default": 10000,
+      "min": 100,
+      "max": 100000,
+      "step": 100
+    }
+  ]
+}
