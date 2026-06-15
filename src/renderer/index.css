@@ -103,4 +103,14 @@
   .scrollbar-thin::-webkit-scrollbar-corner {
     background: transparent;
   }
+
+  /* Frameless-window drag handles: `drag-region` lets you move the launcher by
+     grabbing that area; `no-drag` re-enables pointer interaction for controls
+     nested inside a drag region (inputs, buttons). */
+  .drag-region {
+    -webkit-app-region: drag;
+  }
+  .no-drag {
+    -webkit-app-region: no-drag;
+  }
 }

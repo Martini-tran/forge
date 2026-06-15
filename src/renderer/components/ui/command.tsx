@@ -25,11 +25,16 @@ export function CommandInput({
   trailing,
   ...props
 }: ComponentProps<typeof CommandPrimitive.Input> & { trailing?: ReactNode }) {
+  // The top input bar doubles as the launcher's window drag handle; the input
+  // itself stays `no-drag` so clicking/selecting text still works.
   return (
-    <div className="flex items-center border-b px-3" cmdk-input-wrapper="">
+    <div
+      className="drag-region flex items-center border-b px-3"
+      cmdk-input-wrapper=""
+    >
       <CommandPrimitive.Input
         className={cn(
-          'flex h-12 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50',
+          'no-drag flex h-12 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50',
           className,
         )}
         {...props}

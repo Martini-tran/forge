@@ -237,14 +237,14 @@ export function App(): JSX.Element {
     return (
       <div
         ref={panelRef}
-        className="flex h-[520px] w-full flex-col overflow-hidden rounded-xl border border-border bg-popover/95 backdrop-blur-xl"
+        className="flex h-[520px] w-full flex-col overflow-hidden rounded-xl border border-border bg-popover"
       >
-        <header className="flex h-11 shrink-0 items-center gap-2 border-b border-border px-3">
+        <header className="drag-region flex h-11 shrink-0 items-center gap-2 border-b border-border px-3">
           <button
             type="button"
             aria-label="返回"
             onClick={exitPlugin}
-            className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+            className="no-drag flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
           >
             <ArrowLeft className="h-4 w-4" />
           </button>
@@ -257,7 +257,7 @@ export function App(): JSX.Element {
             aria-label="分离为独立窗口"
             title="分离为独立窗口"
             onClick={() => detachPlugin(activePlugin)}
-            className="ml-auto flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+            className="no-drag ml-auto flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
           >
             <ExternalLink className="h-4 w-4" />
           </button>
@@ -277,7 +277,7 @@ export function App(): JSX.Element {
     <Command
       ref={panelRef}
       shouldFilter={false}
-      className="w-full rounded-xl border border-border bg-popover/95 backdrop-blur-xl"
+      className="w-full rounded-xl border border-border bg-popover"
     >
       <CommandInput
         ref={inputRef}
@@ -301,7 +301,7 @@ export function App(): JSX.Element {
             type="button"
             aria-label="设置"
             onClick={() => window.launcher.openSettings()}
-            className="ml-2 flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+            className="no-drag ml-2 flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
           >
             <Settings className="h-4 w-4" />
           </button>
