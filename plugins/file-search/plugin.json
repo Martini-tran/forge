@@ -1,0 +1,67 @@
+{
+  "id": "file-search",
+  "name": "文件搜索",
+  "version": "1.0.0",
+  "type": "view",
+  "entry": "index.js",
+  "ui": "ui/index.html",
+  "icon": "icon.svg",
+  "description": "基于 Everything 的全盘即时文件搜索。",
+  "keywords": ["f", "file", "find", "文件", "查找", "搜索"],
+  "window": { "width": 760, "height": 520 },
+  "config": [
+    {
+      "key": "esPath",
+      "type": "string",
+      "label": "es.exe 路径",
+      "description": "Everything 命令行客户端 es.exe 的绝对路径。留空则自动探测（插件 bin/ 目录 → 系统 PATH）。",
+      "default": "",
+      "placeholder": "留空自动探测"
+    },
+    {
+      "key": "maxResults",
+      "type": "number",
+      "label": "结果上限",
+      "description": "单次最多返回多少条结果(10–500)。",
+      "default": 50,
+      "min": 10,
+      "max": 500,
+      "step": 10
+    },
+    {
+      "key": "sortBy",
+      "type": "select",
+      "label": "排序方式",
+      "description": "结果的排序依据。",
+      "default": "name",
+      "options": [
+        { "label": "名称", "value": "name" },
+        { "label": "路径", "value": "path" },
+        { "label": "修改时间", "value": "date-modified" },
+        { "label": "大小", "value": "size" },
+        { "label": "运行次数", "value": "run-count" }
+      ]
+    },
+    {
+      "key": "matchPath",
+      "type": "boolean",
+      "label": "匹配完整路径",
+      "description": "开启后用查询匹配完整路径，而不仅是文件名。",
+      "default": false
+    },
+    {
+      "key": "matchCase",
+      "type": "boolean",
+      "label": "区分大小写",
+      "description": "开启后查询区分大小写。",
+      "default": false
+    },
+    {
+      "key": "regex",
+      "type": "boolean",
+      "label": "正则匹配",
+      "description": "把查询当作正则表达式（Everything 语法）。",
+      "default": false
+    }
+  ]
+}
