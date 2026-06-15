@@ -237,9 +237,9 @@ export function App(): JSX.Element {
     return (
       <div
         ref={panelRef}
-        className="flex h-[520px] w-full flex-col overflow-hidden rounded-xl border border-border bg-popover"
+        className="drag-region flex h-[520px] w-full flex-col overflow-hidden rounded-xl border border-border bg-popover"
       >
-        <header className="drag-region flex h-11 shrink-0 items-center gap-2 border-b border-border px-3">
+        <header className="flex h-11 shrink-0 items-center gap-2 border-b border-border px-3">
           <button
             type="button"
             aria-label="返回"
@@ -267,7 +267,7 @@ export function App(): JSX.Element {
           ref={webviewRef}
           src={`plugin://${activePlugin.id}/${activePlugin.ui}`}
           partition={`persist:plugin-${activePlugin.id}`}
-          className="flex-1"
+          className="no-drag flex-1"
         />
       </div>
     );
@@ -277,7 +277,7 @@ export function App(): JSX.Element {
     <Command
       ref={panelRef}
       shouldFilter={false}
-      className="w-full rounded-xl border border-border bg-popover"
+      className="drag-region w-full rounded-xl border border-border bg-popover"
     >
       <CommandInput
         ref={inputRef}

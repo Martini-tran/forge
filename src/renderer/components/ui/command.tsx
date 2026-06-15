@@ -25,13 +25,10 @@ export function CommandInput({
   trailing,
   ...props
 }: ComponentProps<typeof CommandPrimitive.Input> & { trailing?: ReactNode }) {
-  // The top input bar doubles as the launcher's window drag handle; the input
-  // itself stays `no-drag` so clicking/selecting text still works.
+  // The whole launcher panel is a window drag region (see App.tsx); the input
+  // opts out with `no-drag` so clicking/selecting text still works.
   return (
-    <div
-      className="drag-region flex items-center border-b px-3"
-      cmdk-input-wrapper=""
-    >
+    <div className="flex items-center border-b px-3" cmdk-input-wrapper="">
       <CommandPrimitive.Input
         className={cn(
           'no-drag flex h-12 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50',
@@ -92,7 +89,7 @@ export function CommandItem({
   return (
     <CommandPrimitive.Item
       className={cn(
-        "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-2 text-sm outline-none data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 [&_svg]:h-4 [&_svg]:w-4 [&_svg]:shrink-0",
+        "no-drag relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-2 text-sm outline-none data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 [&_svg]:h-4 [&_svg]:w-4 [&_svg]:shrink-0",
         className,
       )}
       {...props}
