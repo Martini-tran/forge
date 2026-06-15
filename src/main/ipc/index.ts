@@ -29,6 +29,11 @@ import {
   getPluginRequestDefaults,
   notifyPluginConfigChanged,
 } from "../plugins/runtime";
+import {
+  installPluginFromFile,
+  uninstallPlugin,
+} from "../plugins/install";
+import { PACKAGE_EXT } from "../../shared/PluginPackage";
 import { runPluginHttpRequest } from "../plugins/http";
 import {
   pluginIdForWebContents,
@@ -203,6 +208,29 @@ export function registerIpcHandlers(): void {
       setPluginEnabled(id, enabled);
       await reloadPlugins(); // toggles take effect without a restart
     },
+  );
+
+  // Install a plugin from a user-picked `.orcpkg`. Returns the installed
+  // plugin's info, or null if the user cancelled the file dialog.
+  ipcMain.handle("plugins:install", async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender) ?? undefined;
+    const opts = {
+      title: "选择插件包",
+      properties: ["openFile"] as const,
+      filters: [
+        { name: "插件包", extensions: [PACKAGE_EXT.replace(/^\./, "")] },
+      ],
+    };
+    const res = win
+      ? await dialog.showOpenDialog(win, opts)
+      : await dialog.showOpenDialog(opts);
+    if (res.canceled || !res.filePaths[0]) return null;
+    return installPluginFromFile(res.filePaths[0]);
+  });
+
+  // Uninstall a plugin (remove from disk + clear its stored state).
+  ipcMain.handle("plugins:uninstall", (_e, id: string) =>
+    uninstallPlugin(id),
   );
 
   // Record that a view plugin was opened, so it ranks in "recently used".

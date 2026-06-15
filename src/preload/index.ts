@@ -119,6 +119,12 @@ const launcher = {
     ipcRenderer.invoke("plugins:setKeywords", id, keywords),
   setPluginEnabled: (id: string, enabled: boolean): Promise<void> =>
     ipcRenderer.invoke("plugins:setEnabled", id, enabled),
+  /** Pick a `.orcpkg` and install it; resolves the new plugin, or null if cancelled. */
+  installPlugin: (): Promise<PluginInfo | null> =>
+    ipcRenderer.invoke("plugins:install"),
+  /** Uninstall a plugin (remove from disk + clear its stored state). */
+  uninstallPlugin: (id: string): Promise<void> =>
+    ipcRenderer.invoke("plugins:uninstall", id),
   /** Toggle whether a view plugin opens in its detached window by default. */
   setPluginOpenInWindow: (id: string, on: boolean): Promise<void> =>
     ipcRenderer.invoke("plugins:setOpenInWindow", id, on),

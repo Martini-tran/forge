@@ -1,6 +1,5 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { app } from "electron";
 import {
   getPluginStates,
   setPluginState,
@@ -10,19 +9,20 @@ import {
 } from "../../core/database";
 import { pinyinForName } from "../apps/pinyin";
 import { resolvePluginConfig } from "../../shared/PluginConfig";
+import { userPluginsRoot } from "./paths";
 import type { PluginManifest } from "../../shared/PluginManifest";
 import type { PluginInfo } from "../../shared/PluginInfo";
 
 /**
- * Discover plugins by reading `plugins/<id>/plugin.json`. This only lists and
- * tracks enabled state for the management UI — it does NOT load or execute
- * plugin code (the runtime is a separate, later task).
+ * Discover installed plugins by reading `<userData>/plugins/<id>/plugin.json`.
+ * This only lists and tracks management state (enabled, keywords, config) —
+ * loading/executing plugin code is the runtime's job (see runtime.ts). Plugins
+ * are seeded here on first run and can be installed/uninstalled at runtime
+ * (see install.ts).
  */
 
 function pluginsRoot(): string {
-  return app.isPackaged
-    ? path.join(process.resourcesPath, "plugins")
-    : path.join(app.getAppPath(), "plugins");
+  return userPluginsRoot();
 }
 
 const ICON_MIME: Record<string, string> = {
@@ -88,6 +88,9 @@ export async function discoverPlugins(): Promise<PluginInfo[]> {
       userKeywords: keywords[manifest.id] ?? "",
       pinyin: pinyinForName(manifest.name),
       dir,
+      // Everything lives in the writable user dir, so every plugin is
+      // uninstallable (built-ins are seeded there and can be removed too).
+      removable: true,
       openInWindow: openInWindow[manifest.id] ?? false,
       configValues: resolvePluginConfig(
         manifest.config,

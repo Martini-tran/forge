@@ -16,6 +16,12 @@ export interface PluginInfo extends PluginManifest {
   /** Absolute plugin directory. */
   dir: string;
   /**
+   * Whether the plugin can be uninstalled (removed from disk). Currently always
+   * true — every plugin, including seeded built-ins, lives in the writable user
+   * plugins directory.
+   */
+  removable: boolean;
+  /**
    * For `view` plugins: open directly in the detached window when activated
    * from the launcher, instead of inline. User-set in the plugins settings;
    * defaults to false.

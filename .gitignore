@@ -93,3 +93,6 @@ out/
 
 dist
 .idea
+
+# Generated plugin packages (built by `npm run pack:bundled`)
+bundled-plugins/

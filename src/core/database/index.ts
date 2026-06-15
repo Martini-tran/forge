@@ -384,3 +384,20 @@ export function getPluginConfig(id: string): PluginConfigValues {
 export function setPluginConfig(id: string, values: PluginConfigValues): void {
   setSetting(`plugin:${id}:config`, JSON.stringify(values));
 }
+
+/**
+ * Remove all stored state for a plugin (enabled flag, keywords, config,
+ * openInWindow, seed bookkeeping). Used on uninstall. The `:uninstalled`
+ * tombstone is deliberately preserved so first-run seeding won't reinstall a
+ * built-in the user removed — the caller sets it after this runs.
+ */
+export function deletePluginData(id: string): void {
+  // Escape LIKE metacharacters in the id (ids may contain `_`) so the prefix
+  // matches literally; the trailing `%` stays a wildcard.
+  const escaped = id.replace(/[\\%_]/g, "\\$&");
+  getDb()
+    .prepare(
+      "DELETE FROM settings WHERE key LIKE ? ESCAPE '\\' AND key NOT LIKE '%:uninstalled'",
+    )
+    .run(`plugin:${escaped}:%`);
+}

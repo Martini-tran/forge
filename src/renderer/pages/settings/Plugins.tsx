@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ExternalLink, Puzzle, Search } from 'lucide-react';
+import { ExternalLink, PackagePlus, Puzzle, Search, Trash2 } from 'lucide-react';
 import type { PluginInfo } from '../../../shared/PluginInfo';
 import type { PluginConfigField } from '../../../shared/PluginManifest';
 import type { PluginConfigValues } from '../../../shared/PluginConfig';
@@ -160,12 +160,14 @@ function PluginDetail({
   onSaveKeywords,
   onSaveConfig,
   onSetOpenInWindow,
+  onUninstall,
 }: {
   plugin: PluginInfo;
   onToggle: (id: string, enabled: boolean) => void;
   onSaveKeywords: (id: string, keywords: string) => void;
   onSaveConfig: (id: string, values: PluginConfigValues) => void;
   onSetOpenInWindow: (id: string, on: boolean) => void;
+  onUninstall: (plugin: PluginInfo) => void;
 }): JSX.Element {
   const [kw, setKw] = useState(plugin.userKeywords);
   // Reset the field when switching to a different plugin.
@@ -256,6 +258,22 @@ function PluginDetail({
         )}
 
         <PluginConfigForm plugin={plugin} onSave={onSaveConfig} />
+
+        {plugin.removable && (
+          <div className="border-t border-border pt-3">
+            <Button
+              variant="destructive"
+              className="h-8 gap-1.5"
+              onClick={() => onUninstall(plugin)}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              卸载插件
+            </Button>
+            <p className="mt-1.5 text-[11px] text-muted-foreground">
+              从磁盘移除该插件并清除其设置。此操作不可撤销。
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -265,6 +283,7 @@ export function Plugins(): JSX.Element {
   const [plugins, setPlugins] = useState<PluginInfo[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filter, setFilter] = useState('');
+  const [error, setError] = useState('');
 
   useEffect(() => {
     window.launcher.listPlugins().then((list) => {
@@ -272,6 +291,44 @@ export function Plugins(): JSX.Element {
       setSelectedId((cur) => cur ?? list[0]?.id ?? null);
     });
   }, []);
+
+  // Install from a user-picked .orcpkg; select the newly installed plugin.
+  const install = () => {
+    setError('');
+    window.launcher
+      .installPlugin()
+      .then((info) => {
+        if (!info) return; // cancelled
+        return window.launcher.listPlugins().then((list) => {
+          setPlugins(list);
+          setSelectedId(info.id);
+        });
+      })
+      .catch((e: unknown) =>
+        setError(e instanceof Error ? e.message : '安装失败'),
+      );
+  };
+
+  const uninstall = (plugin: PluginInfo) => {
+    if (
+      !window.confirm(`确定卸载「${plugin.name}」吗？此操作不可撤销。`)
+    ) {
+      return;
+    }
+    setError('');
+    window.launcher
+      .uninstallPlugin(plugin.id)
+      .then(() => window.launcher.listPlugins())
+      .then((list) => {
+        setPlugins(list);
+        setSelectedId((cur) =>
+          cur === plugin.id ? (list[0]?.id ?? null) : cur,
+        );
+      })
+      .catch((e: unknown) =>
+        setError(e instanceof Error ? e.message : '卸载失败'),
+      );
+  };
 
   // Filter by name, description, and both manifest + user keywords.
   const filtered = useMemo(() => {
@@ -319,13 +376,29 @@ export function Plugins(): JSX.Element {
 
   return (
     <div className="space-y-3">
-      <div>
-        <h2 className="text-sm font-semibold">插件管理</h2>
-        <p className="text-xs text-muted-foreground">
-          来自 <code className="rounded bg-muted px-1">plugins/</code>{' '}
-          目录的插件。点击左侧插件查看信息、启用/禁用并设置搜索关键字。
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-semibold">插件管理</h2>
+          <p className="text-xs text-muted-foreground">
+            已安装的插件。点击左侧插件查看信息、启用/禁用并设置搜索关键字，或安装/卸载插件包（
+            <code className="rounded bg-muted px-1">.orcpkg</code>）。
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          className="h-8 shrink-0 gap-1.5"
+          onClick={install}
+        >
+          <PackagePlus className="h-3.5 w-3.5" />
+          安装插件…
+        </Button>
       </div>
+
+      {error && (
+        <p className="rounded-md border border-red-600/40 bg-red-600/10 px-3 py-2 text-xs text-red-600">
+          {error}
+        </p>
+      )}
 
       {plugins.length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border py-12 text-muted-foreground">
@@ -385,6 +458,7 @@ export function Plugins(): JSX.Element {
               onSaveKeywords={saveKeywords}
               onSaveConfig={saveConfig}
               onSetOpenInWindow={setOpenInWindow}
+              onUninstall={uninstall}
             />
           )}
         </div>
