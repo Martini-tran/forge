@@ -57,7 +57,8 @@ src/
 └── shared/            # 主进程与渲染层共享的类型定义
 
 plugins/               # 内置插件（运行时从 resources/plugins 加载）
-└── clipboard/         # 剪贴板历史（view 插件示例，含配置）
+├── clipboard/         # 剪贴板历史（view 插件示例，含配置）
+└── file-search/       # 本地文件搜索（封装 Everything es.exe，view 插件）
 assets/                # 应用 / 窗口图标
 ```
 
@@ -92,6 +93,29 @@ npm run build:win
 ```
 
 构建配置见 `forge.config.ts` 与 `electron-builder.yml`。`assets/` 与 `plugins/` 通过 `extraResource` 一同打包，运行时从 `process.resourcesPath/plugins` 加载插件。
+
+## 🔎 内置插件：文件搜索
+
+`plugins/file-search`（view 类型）封装 [Everything](https://www.voidtools.com/) 的命令行客户端 `es.exe`，提供**全盘、即时、按文件名**的本地文件搜索（仅 Windows）。
+
+**前置条件**（缺失时面板会显示引导，不会崩溃）：
+
+1. 安装并**运行 Everything**——它提供索引与 IPC 服务。
+2. 让插件能找到 **`es.exe`**（Everything 的命令行客户端，voidtools 单独提供），三选一：
+   - 放到 `plugins/file-search/bin/es.exe`（推荐，随插件分发）；
+   - 在 **设置 → 插件管理 → 文件搜索** 配置里填写 `es.exe` 绝对路径；
+   - 将 `es.exe` 所在目录加入系统 `PATH`。
+
+**使用**：主搜索框输入 `file` / `文件` / `查找` 打开面板，输入关键字即时搜索。结果项：
+
+| 操作 | 行为 |
+| --- | --- |
+| `Enter` | 用默认程序打开文件 |
+| `Ctrl`+`Enter` | 在资源管理器中定位（选中该文件） |
+| `Ctrl`+`C` | 复制完整路径到剪贴板 |
+| `Esc` | 返回启动器根视图 |
+
+可在插件配置中调整结果上限、排序方式（名称 / 路径 / 修改时间 / 大小 / 运行次数）以及是否匹配完整路径、区分大小写、正则匹配。查询通过 UTF-8 导出读取，中文文件名不会乱码。
 
 ## 🔌 插件开发
 
