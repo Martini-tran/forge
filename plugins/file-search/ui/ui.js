@@ -45,11 +45,11 @@ function toast(msg) {
 const ERR = {
   "no-es": {
     title: "未找到 es.exe",
-    body: "请安装 Everything，并把它的命令行客户端 <b>es.exe</b> 放到本插件的 <b>bin/</b> 目录，或在「插件管理 → 文件搜索」配置里填写 es.exe 路径。",
+    body: "请把 Everything 的命令行客户端 <b>es.exe</b> 放到本插件的 <b>bin/</b> 目录，或在「插件管理 → 文件搜索」配置里填写 es.exe 路径。",
   },
   "not-running": {
     title: "Everything 未运行",
-    body: "本插件依赖 Everything 提供索引。请启动 <b>Everything</b> 后重试。",
+    body: "把 <b>Everything.exe</b> 放到本插件 <b>bin/</b> 目录（插件会自动后台启动它），或手动运行 Everything 后重试。",
   },
   timeout: { title: "查询超时", body: "Everything 响应过慢，请稍后重试。" },
   error: { title: "搜索出错", body: "调用 es.exe 失败，请检查配置。" },
@@ -174,13 +174,21 @@ async function refresh() {
 }
 
 // Idle (empty query): proactively probe es/Everything so setup issues are
-// visible before the user even types.
+// visible before the user even types. When Everything is auto-starting, show a
+// transient hint and re-probe until it's up.
+let idleTimer;
 async function showIdle() {
+  clearTimeout(idleTimer);
   try {
     const st = await window.pluginHost.invoke("status");
     if (lastQuery) return; // user started typing while we probed
     if (st && st.ok) {
       showEmpty("输入关键字开始搜索本地文件");
+    } else if (st && st.error === "starting") {
+      showEmpty("正在启动 Everything，请稍候…");
+      idleTimer = setTimeout(() => {
+        if (!lastQuery) showIdle();
+      }, 1500);
     } else {
       showError(st && st.error ? st.error : "error");
     }

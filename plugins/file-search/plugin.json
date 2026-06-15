@@ -19,6 +19,14 @@
       "placeholder": "留空自动探测"
     },
     {
+      "key": "everythingPath",
+      "type": "string",
+      "label": "Everything.exe 路径",
+      "description": "Everything 主程序路径。留空则自动探测插件 bin/Everything.exe。设置后插件会在 Everything 未运行时自动后台启动它。",
+      "default": "",
+      "placeholder": "留空自动探测 bin/Everything.exe"
+    },
+    {
       "key": "maxResults",
       "type": "number",
       "label": "结果上限",
