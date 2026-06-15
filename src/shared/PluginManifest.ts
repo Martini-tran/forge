@@ -46,6 +46,22 @@ export interface PluginManifest {
     alwaysOnTop?: boolean;
   };
   /**
+   * Optional HTTP defaults for the plugin's network requests. Both the plugin's
+   * main-side code (via `init(ctx).http`) and its view UI (via
+   * `window.pluginHost.request` / `createClient`) issue requests through the
+   * host, which performs the actual fetch in the main process (Chromium net
+   * stack, system-proxy aware). A plugin may also pass/override `baseURL` per
+   * call or per client; these are just the defaults it declares.
+   */
+  request?: {
+    /** Default base URL prepended to relative request paths. */
+    baseURL?: string;
+    /** Default per-request timeout in ms (0 / omitted = no timeout). */
+    timeout?: number;
+    /** Default headers merged into every request. */
+    headers?: Record<string, string>;
+  };
+  /**
    * Optional user-configurable settings. Each field is rendered as a control in
    * the plugins management UI; the user's values are persisted and exposed back
    * to the plugin (main-side via `init(ctx).getConfig()`, view UIs via

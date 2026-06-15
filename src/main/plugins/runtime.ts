@@ -1,6 +1,7 @@
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { discoverPlugins } from './discover';
+import { createPluginHttpClient, type PluginRequestDefaults } from './http';
 import { getPluginConfig } from '../../core/database';
 import { resolvePluginConfig } from '../../shared/PluginConfig';
 import type { Plugin, PluginContext } from '../../core/plugin/types';
@@ -30,6 +31,9 @@ const enabledDirs = new Map<string, string>();
 // id → its manifest's config schema, refreshed each discover so getConfig()
 // always resolves against the current declared fields.
 const pluginSchemas = new Map<string, PluginConfigField[]>();
+// id → its manifest's `request` HTTP defaults (baseURL/timeout/headers),
+// refreshed each discover. Used by ctx.http and the plugin:request bridge.
+const pluginRequestDefaults = new Map<string, PluginRequestDefaults>();
 // id → main-side config-change subscribers registered via init(ctx).
 const configSubscribers = new Map<
   string,
@@ -42,6 +46,11 @@ const initialized = new Set<string>();
 /** A plugin's effective config (manifest defaults + user overrides). */
 export function getEffectivePluginConfig(id: string): PluginConfigValues {
   return resolvePluginConfig(pluginSchemas.get(id), getPluginConfig(id));
+}
+
+/** A plugin's declared HTTP defaults (manifest `request` block, or {}). */
+export function getPluginRequestDefaults(id: string): PluginRequestDefaults {
+  return pluginRequestDefaults.get(id) ?? {};
 }
 
 /** Build the host context handed to a plugin's init(ctx). */
@@ -57,6 +66,9 @@ function makeContext(id: string): PluginContext {
       set.add(cb);
       return () => set.delete(cb);
     },
+    http: createPluginHttpClient(getPluginRequestDefaults(id)),
+    createHttpClient: (options) =>
+      createPluginHttpClient(getPluginRequestDefaults(id), options),
   };
 }
 
@@ -78,11 +90,13 @@ export async function loadPlugins(): Promise<void> {
   const next: Plugin[] = [];
   enabledDirs.clear();
   pluginSchemas.clear();
+  pluginRequestDefaults.clear();
 
   for (const info of infos) {
     // Track every plugin's schema (incl. disabled ones) so its config can be
     // resolved and edited in the management UI regardless of enabled state.
     pluginSchemas.set(info.id, info.config ?? []);
+    pluginRequestDefaults.set(info.id, info.request ?? {});
     if (!info.enabled) continue;
     enabledDirs.set(info.id, info.dir);
     if (!info.entry) continue; // pure-UI view plugin: nothing to require

@@ -26,8 +26,10 @@ import {
   reloadPlugins,
   invokePlugin,
   getEffectivePluginConfig,
+  getPluginRequestDefaults,
   notifyPluginConfigChanged,
 } from "../plugins/runtime";
+import { runPluginHttpRequest } from "../plugins/http";
 import {
   pluginIdForWebContents,
   hostWindowForWebContents,
@@ -285,6 +287,19 @@ export function registerIpcHandlers(): void {
     const pluginId = pluginIdForWebContents(event.sender.id);
     if (!pluginId) throw new Error("unknown plugin host");
     return invokePlugin(pluginId, method, args);
+  });
+
+  // HTTP request from a plugin UI. The fetch runs here in main (so it isn't
+  // bound by the plugin:// CSP). The pluginId is derived from the calling
+  // webview's committed origin; baseURL defaults to the plugin's manifest
+  // request.baseURL but the UI may override it per call.
+  ipcMain.handle("plugin:request", (event, config: unknown) => {
+    const pluginId = pluginIdForWebContents(event.sender.id);
+    if (!pluginId) throw new Error("unknown plugin host");
+    if (!config || typeof config !== "object") {
+      throw new Error("invalid request config");
+    }
+    return runPluginHttpRequest(getPluginRequestDefaults(pluginId), config as any);
   });
 
   // A plugin UI asks to finish or go back. In a detached plugin window both
