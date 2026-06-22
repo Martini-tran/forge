@@ -31,10 +31,13 @@ import {
 } from "../plugins/runtime";
 import {
   installPluginFromFile,
+  installPluginFromNpm,
+  installPluginFromUrl,
   uninstallPlugin,
 } from "../plugins/install";
 import { PACKAGE_EXT } from "../../shared/PluginPackage";
 import { runPluginHttpRequest } from "../plugins/http";
+import { backendFetch, type BackendFetchRequest } from "../backend/fetch";
 import {
   pluginIdForWebContents,
   hostWindowForWebContents,
@@ -199,6 +202,14 @@ export function registerIpcHandlers(): void {
   // Sync: prune uninstalled custom entries + rescan installed apps.
   ipcMain.handle("quickopen:sync", () => syncQuickOpen());
 
+  /* -------------------------------------------------------------- backend */
+
+  // Proxy a renderer backend request through main's net stack (CORS-free).
+  // The renderer's request client injects this as its fetch implementation.
+  ipcMain.handle("backend:fetch", (_e, req: BackendFetchRequest) =>
+    backendFetch(req),
+  );
+
   /* -------------------------------------------------------------- plugins */
 
   ipcMain.handle("plugins:list", () => discoverPlugins());
@@ -227,6 +238,19 @@ export function registerIpcHandlers(): void {
     if (res.canceled || !res.filePaths[0]) return null;
     return installPluginFromFile(res.filePaths[0]);
   });
+
+  // Install or upgrade a plugin from npm by package name.
+  ipcMain.handle("plugins:installNpm", (_event, spec: string) =>
+    installPluginFromNpm(spec),
+  );
+
+  // Install a plugin from a remote marketplace URL (downloads the `.orcpkg`,
+  // optionally verifies its SHA-256, then installs it locally).
+  ipcMain.handle(
+    "plugins:installFromUrl",
+    (_event, url: string, sha256?: string) =>
+      installPluginFromUrl(url, sha256),
+  );
 
   // Uninstall a plugin (remove from disk + clear its stored state).
   ipcMain.handle("plugins:uninstall", (_e, id: string) =>

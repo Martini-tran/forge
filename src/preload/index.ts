@@ -6,6 +6,10 @@ import type { SettingsSnapshot } from "../shared/Settings";
 import type { PluginInfo } from "../shared/PluginInfo";
 import type { PluginConfigValues } from "../shared/PluginConfig";
 import type { SearchResult } from "../shared/SearchResult";
+import type {
+  BackendFetchRequest,
+  BackendFetchResponse,
+} from "../main/backend/fetch";
 
 type NewCustomApp = Omit<CustomApp, "id" | "createdAt">;
 
@@ -31,6 +35,12 @@ const launcher = {
 
   /** Ask main to resize the window to the given content height (px). */
   resize: (height: number): void => ipcRenderer.send("window:resize", height),
+
+  /* -------------------------------------------------------------- backend */
+
+  /** Proxy a backend HTTP request through main's net stack (CORS-free). */
+  backendFetch: (req: BackendFetchRequest): Promise<BackendFetchResponse> =>
+    ipcRenderer.invoke("backend:fetch", req),
 
   /** Subscribe to background-refreshed app lists. Returns an unsubscribe fn. */
   onAppsUpdated: (cb: (apps: AppEntry[]) => void): (() => void) => {
@@ -122,6 +132,12 @@ const launcher = {
   /** Pick a `.orcpkg` and install it; resolves the new plugin, or null if cancelled. */
   installPlugin: (): Promise<PluginInfo | null> =>
     ipcRenderer.invoke("plugins:install"),
+  /** Install or upgrade a plugin from npm by package name. */
+  installNpmPlugin: (spec: string): Promise<PluginInfo> =>
+    ipcRenderer.invoke("plugins:installNpm", spec),
+  /** Download a `.orcpkg` from the marketplace URL and install it locally. */
+  installPluginFromUrl: (url: string, sha256?: string): Promise<PluginInfo> =>
+    ipcRenderer.invoke("plugins:installFromUrl", url, sha256),
   /** Uninstall a plugin (remove from disk + clear its stored state). */
   uninstallPlugin: (id: string): Promise<void> =>
     ipcRenderer.invoke("plugins:uninstall", id),

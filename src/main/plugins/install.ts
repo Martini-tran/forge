@@ -1,7 +1,11 @@
 import { promises as fs } from "node:fs";
+import { spawn } from "node:child_process";
 import path from "node:path";
+import os from "node:os";
+import crypto from "node:crypto";
 import zlib from "node:zlib";
 import { promisify } from "node:util";
+import { net } from "electron";
 import {
   getSetting,
   setSetting,
@@ -13,6 +17,7 @@ import {
   userPluginsRoot,
   bundledPluginsRoot,
   sourcePluginsRoot,
+  npmPluginsRoot,
 } from "./paths";
 import {
   validatePackage,
@@ -23,6 +28,9 @@ import type { PluginPackage } from "../../shared/PluginPackage";
 import type { PluginInfo } from "../../shared/PluginInfo";
 
 const gunzip = promisify(zlib.gunzip);
+const DEFAULT_NPM_REGISTRY = "https://registry.npmmirror.com";
+const NPM_PACKAGE_SPEC_RE =
+  /^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*(?:@[a-z0-9][a-z0-9._~+-]*)?$/i;
 
 /**
  * Plugin install/uninstall + first-run seeding.
@@ -96,6 +104,133 @@ export async function installPluginFromFile(
 }
 
 /**
+ * Install a plugin from a remote marketplace URL. Downloads the `.orcpkg`
+ * bytes (via Electron's net stack, so it follows the app's proxy/TLS config),
+ * optionally verifies their SHA-256 against the value the backend returned,
+ * then reuses the on-disk install path (`readPackage` gunzips + validates).
+ *
+ * The downloaded artifact MUST be a `.orcpkg` — `gzip(JSON PluginPackage)`;
+ * anything else is rejected by `validatePackage` inside `readPackage`.
+ */
+export async function installPluginFromUrl(
+  url: string,
+  expectedSha256?: string,
+): Promise<PluginInfo> {
+  if (!/^https?:\/\//i.test(url)) {
+    throw new Error("非法的下载地址");
+  }
+  const res = await net.fetch(url);
+  if (!res.ok) {
+    throw new Error(`下载失败（HTTP ${res.status}）`);
+  }
+  const buf = Buffer.from(await res.arrayBuffer());
+
+  if (expectedSha256) {
+    const actual = crypto.createHash("sha256").update(buf).digest("hex");
+    if (actual.toLowerCase() !== expectedSha256.trim().toLowerCase()) {
+      throw new Error("安装包校验失败（SHA-256 不匹配）");
+    }
+  }
+
+  // Stage to a unique temp file, then reuse the file-based install path.
+  const tmp = path.join(
+    os.tmpdir(),
+    `orccode-download-${process.pid}-${Date.now()}${PACKAGE_EXT}`,
+  );
+  await fs.writeFile(tmp, buf);
+  try {
+    return await installPluginFromFile(tmp);
+  } finally {
+    await fs.rm(tmp, { force: true });
+  }
+}
+
+function packageNameFromSpec(spec: string): string {
+  const trimmed = spec.trim();
+  if (trimmed.startsWith("@")) {
+    const slash = trimmed.indexOf("/");
+    const versionAt = trimmed.indexOf("@", slash + 1);
+    return versionAt === -1 ? trimmed : trimmed.slice(0, versionAt);
+  }
+  return trimmed.split("@")[0];
+}
+
+function validateNpmPackageSpec(spec: string): string {
+  const trimmed = spec.trim();
+  if (!NPM_PACKAGE_SPEC_RE.test(trimmed)) {
+    throw new Error("请输入合法的 npm 包名，例如 rubick-example 或 @scope/plugin");
+  }
+  return trimmed;
+}
+
+async function ensureNpmRoot(): Promise<void> {
+  const root = npmPluginsRoot();
+  await fs.mkdir(root, { recursive: true });
+  const pkgPath = path.join(root, "package.json");
+  const exists = await fs
+    .access(pkgPath)
+    .then(() => true)
+    .catch(() => false);
+  if (!exists) {
+    await fs.writeFile(
+      pkgPath,
+      JSON.stringify({ private: true, dependencies: {} }, null, 2),
+      "utf8",
+    );
+  }
+}
+
+async function runNpm(args: string[]): Promise<string> {
+  await ensureNpmRoot();
+  const npm = process.platform === "win32" ? "npm.cmd" : "npm";
+  return new Promise((resolve, reject) => {
+    const child = spawn(npm, args, {
+      cwd: npmPluginsRoot(),
+      windowsHide: true,
+      shell: false,
+    });
+    let output = "";
+    child.stdout.on("data", (data) => {
+      output += data.toString();
+    });
+    child.stderr.on("data", (data) => {
+      output += data.toString();
+    });
+    child.on("error", (err) => reject(err));
+    child.on("close", (code) => {
+      if (code === 0) resolve(output);
+      else reject(new Error(output || `npm exited with code ${code}`));
+    });
+  });
+}
+
+/** Install or upgrade a plugin package from npm into the npm-managed tree. */
+export async function installPluginFromNpm(
+  spec: string,
+  registry = DEFAULT_NPM_REGISTRY,
+): Promise<PluginInfo> {
+  const safeSpec = validateNpmPackageSpec(spec);
+  const packageName = packageNameFromSpec(safeSpec);
+  await runNpm([
+    "install",
+    safeSpec.includes("@", safeSpec.startsWith("@") ? safeSpec.indexOf("/") : 0)
+      ? safeSpec
+      : `${safeSpec}@latest`,
+    "--save",
+    `--registry=${registry}`,
+  ]);
+  await reloadPlugins();
+
+  const info = (await discoverPlugins()).find(
+    (p) => p.source === "npm" && p.packageName === packageName,
+  );
+  if (!info) {
+    throw new Error(`已安装 ${packageName}，但没有发现可用的 plugin.json`);
+  }
+  return info;
+}
+
+/**
  * Uninstall a plugin: remove its directory and wipe its stored state. Only
  * directories inside the user plugins root are removable (guards against a
  * crafted id escaping the root). A tombstone is recorded so first-run seeding
@@ -103,6 +238,15 @@ export async function installPluginFromFile(
  */
 export async function uninstallPlugin(id: string): Promise<void> {
   if (!PLUGIN_ID_RE.test(id)) throw new Error(`非法的插件 id：${id}`);
+  const info = (await discoverPlugins()).find((p) => p.id === id);
+  if (info?.source === "npm") {
+    if (!info.packageName) throw new Error(`缺少 npm 包名：${id}`);
+    await runNpm(["uninstall", info.packageName, "--save"]);
+    deletePluginData(id);
+    await reloadPlugins();
+    return;
+  }
+
   const root = userPluginsRoot();
   const dir = path.join(root, id);
 

@@ -70,6 +70,29 @@ export interface PluginManifest {
   config?: PluginConfigField[];
 }
 
+/**
+ * Rubick/npm-style plugin metadata. These fields are accepted when reading
+ * npm packages and normalized into the host's manifest model.
+ */
+export interface NpmPluginManifest extends Partial<PluginManifest> {
+  /** npm package name, also used by Rubick as the plugin identifier. */
+  name?: string;
+  /** Rubick display name. */
+  pluginName?: string;
+  /** Rubick UI/html or adapter entry. */
+  main?: string;
+  /** Rubick icon field; may be a URL or package-relative asset path. */
+  logo?: string;
+  /** Rubick plugin type; `ui` maps to a view plugin. */
+  pluginType?: string;
+  /** Rubick feature commands; converted to search keywords. */
+  features?: Array<{
+    code?: string;
+    explain?: string;
+    cmds?: string[];
+  }>;
+}
+
 /** Control type for a single config field. */
 export type PluginConfigType = "string" | "number" | "boolean" | "select";
 

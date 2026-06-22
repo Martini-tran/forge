@@ -9,8 +9,11 @@ import {
 } from "../../core/database";
 import { pinyinForName } from "../apps/pinyin";
 import { resolvePluginConfig } from "../../shared/PluginConfig";
-import { userPluginsRoot } from "./paths";
-import type { PluginManifest } from "../../shared/PluginManifest";
+import { npmPluginsNodeModulesRoot, userPluginsRoot } from "./paths";
+import type {
+  NpmPluginManifest,
+  PluginManifest,
+} from "../../shared/PluginManifest";
 import type { PluginInfo } from "../../shared/PluginInfo";
 
 /**
@@ -23,6 +26,10 @@ import type { PluginInfo } from "../../shared/PluginInfo";
 
 function pluginsRoot(): string {
   return userPluginsRoot();
+}
+
+function npmRoot(): string {
+  return npmPluginsNodeModulesRoot();
 }
 
 const ICON_MIME: Record<string, string> = {
@@ -40,6 +47,7 @@ async function readIcon(
   dir: string,
   icon: string,
 ): Promise<string | undefined> {
+  if (/^https?:\/\//i.test(icon) || icon.startsWith("data:")) return icon;
   const mime = ICON_MIME[path.extname(icon).toLowerCase()];
   if (!mime) return undefined;
   try {
@@ -50,54 +58,157 @@ async function readIcon(
   }
 }
 
-export async function discoverPlugins(): Promise<PluginInfo[]> {
-  let entries;
+function normalizeNpmManifest(raw: NpmPluginManifest): PluginManifest | null {
+  const id = (raw.id || raw.name)?.replace(/^@/, "").replace(/\//g, "__");
+  const name = raw.pluginName || raw.name;
+  const version = raw.version || "0.0.0";
+  if (!id || !name) return null;
+
+  const keywords = [
+    ...(raw.keywords ?? []),
+    ...((raw.features ?? []).flatMap((f) => [
+      ...(f.cmds ?? []),
+      f.code ?? "",
+      f.explain ?? "",
+    ])),
+  ].filter(Boolean);
+
+  if (raw.id || raw.type || raw.entry || raw.ui) {
+    return {
+      ...raw,
+      id,
+      name,
+      version,
+      icon: raw.icon || raw.logo,
+      keywords,
+    } as PluginManifest;
+  }
+
+  const rubickType = String(raw.pluginType ?? "").toLowerCase();
+  const main = raw.main;
+  return {
+    id,
+    name,
+    version,
+    type: rubickType === "adapter" ? "inline" : "view",
+    ui: rubickType === "adapter" ? undefined : main,
+    entry: rubickType === "adapter" ? main : undefined,
+    icon: raw.logo,
+    description: raw.description,
+    keywords,
+  };
+}
+
+async function readPluginInfo(
+  dir: string,
+  source: "package" | "npm",
+  packageName?: string,
+): Promise<PluginInfo | null> {
+  let manifest: PluginManifest | null;
   try {
-    entries = await fs.readdir(pluginsRoot(), { withFileTypes: true });
+    const raw = await fs.readFile(path.join(dir, "plugin.json"), "utf8");
+    const parsed = JSON.parse(raw) as NpmPluginManifest;
+    manifest = source === "npm"
+      ? normalizeNpmManifest(parsed)
+      : (parsed as PluginManifest);
   } catch {
-    return []; // plugins/ missing
+    return null; // missing / invalid manifest
+  }
+
+  if (!manifest?.id || !manifest.name) return null;
+  const type = manifest.type === "view" ? "view" : "inline";
+  if (type === "view" && !manifest.ui) {
+    console.error(`[plugins] ${manifest.id}: view plugin missing "ui"`);
+    return null;
   }
 
   const states = getPluginStates();
   const keywords = getPluginKeywords();
   const openInWindow = getPluginOpenInWindow();
-  const out: PluginInfo[] = [];
+  const icon = manifest.icon ? await readIcon(dir, manifest.icon) : undefined;
 
+  return {
+    ...manifest,
+    type,
+    icon, // resolved to a data URI/URL (or undefined)
+    enabled: states[manifest.id] ?? true,
+    userKeywords: keywords[manifest.id] ?? "",
+    pinyin: pinyinForName(manifest.name),
+    dir,
+    source,
+    packageName,
+    removable: true,
+    openInWindow: openInWindow[manifest.id] ?? false,
+    configValues: resolvePluginConfig(
+      manifest.config,
+      getPluginConfig(manifest.id),
+    ),
+  };
+}
+
+async function discoverDirectoryPlugins(root: string): Promise<PluginInfo[]> {
+  let entries;
+  try {
+    entries = await fs.readdir(root, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+
+  const out: PluginInfo[] = [];
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
-    const dir = path.join(pluginsRoot(), entry.name);
-    let manifest: PluginManifest;
-    try {
-      const raw = await fs.readFile(path.join(dir, "plugin.json"), "utf8");
-      manifest = JSON.parse(raw) as PluginManifest;
-    } catch {
-      continue; // missing / invalid manifest
-    }
-    if (!manifest.id || !manifest.name) continue;
-    const type = manifest.type === "view" ? "view" : "inline";
-    if (type === "view" && !manifest.ui) {
-      console.error(`[plugins] ${manifest.id}: view plugin missing "ui"`);
+    const info = await readPluginInfo(path.join(root, entry.name), "package");
+    if (info) out.push(info);
+  }
+  return out;
+}
+
+async function discoverNpmPlugins(): Promise<PluginInfo[]> {
+  let entries;
+  try {
+    entries = await fs.readdir(npmRoot(), { withFileTypes: true });
+  } catch {
+    return [];
+  }
+
+  const out: PluginInfo[] = [];
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    if (entry.name.startsWith(".")) continue;
+
+    if (entry.name.startsWith("@")) {
+      const scopeDir = path.join(npmRoot(), entry.name);
+      const scoped = await fs.readdir(scopeDir, { withFileTypes: true }).catch(
+        () => [],
+      );
+      for (const pkg of scoped) {
+        if (!pkg.isDirectory()) continue;
+        const packageName = `${entry.name}/${pkg.name}`;
+        const info = await readPluginInfo(
+          path.join(scopeDir, pkg.name),
+          "npm",
+          packageName,
+        );
+        if (info) out.push(info);
+      }
       continue;
     }
-    const icon = manifest.icon ? await readIcon(dir, manifest.icon) : undefined;
-    out.push({
-      ...manifest,
-      type,
-      icon, // resolved to a data URI (or undefined)
-      enabled: states[manifest.id] ?? true,
-      userKeywords: keywords[manifest.id] ?? "",
-      pinyin: pinyinForName(manifest.name),
-      dir,
-      // Everything lives in the writable user dir, so every plugin is
-      // uninstallable (built-ins are seeded there and can be removed too).
-      removable: true,
-      openInWindow: openInWindow[manifest.id] ?? false,
-      configValues: resolvePluginConfig(
-        manifest.config,
-        getPluginConfig(manifest.id),
-      ),
-    });
+
+    const info = await readPluginInfo(
+      path.join(npmRoot(), entry.name),
+      "npm",
+      entry.name,
+    );
+    if (info) out.push(info);
   }
+  return out;
+}
+
+export async function discoverPlugins(): Promise<PluginInfo[]> {
+  const out = [
+    ...(await discoverDirectoryPlugins(pluginsRoot())),
+    ...(await discoverNpmPlugins()),
+  ];
 
   out.sort((a, b) => a.name.localeCompare(b.name));
   return out;

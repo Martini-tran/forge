@@ -15,6 +15,16 @@ export function userPluginsRoot(): string {
   return path.join(app.getPath("userData"), "plugins");
 }
 
+/** Where npm-managed plugins install their package.json + node_modules tree. */
+export function npmPluginsRoot(): string {
+  return path.join(app.getPath("userData"), "npm-plugins");
+}
+
+/** node_modules directory under the npm-managed plugin root. */
+export function npmPluginsNodeModulesRoot(): string {
+  return path.join(npmPluginsRoot(), "node_modules");
+}
+
 /** Where the app's shipped `.orcpkg` seed packages live (read-only). */
 export function bundledPluginsRoot(): string {
   return app.isPackaged

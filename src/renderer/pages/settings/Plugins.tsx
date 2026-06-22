@@ -1,5 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ExternalLink, PackagePlus, Puzzle, Search, Trash2 } from 'lucide-react';
+import {
+  ExternalLink,
+  PackagePlus,
+  Puzzle,
+  Search,
+  SquarePlus,
+  Trash2,
+} from 'lucide-react';
 import type { PluginInfo } from '../../../shared/PluginInfo';
 import type { PluginConfigField } from '../../../shared/PluginManifest';
 import type { PluginConfigValues } from '../../../shared/PluginConfig';
@@ -187,6 +194,7 @@ function PluginDetail({
               <span className="text-xs text-muted-foreground">
                 v{plugin.version}
               </span>
+              <Badge label={plugin.source === 'npm' ? 'npm' : '本地'} />
               <Badge label={plugin.type === 'view' ? '视图' : '内联'} />
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
@@ -284,6 +292,7 @@ export function Plugins(): JSX.Element {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filter, setFilter] = useState('');
   const [error, setError] = useState('');
+  const [npmSpec, setNpmSpec] = useState('');
 
   useEffect(() => {
     window.launcher.listPlugins().then((list) => {
@@ -306,6 +315,27 @@ export function Plugins(): JSX.Element {
       })
       .catch((e: unknown) =>
         setError(e instanceof Error ? e.message : '安装失败'),
+      );
+  };
+
+  const installFromNpm = () => {
+    const spec = npmSpec.trim();
+    if (!spec) {
+      setError('请输入 npm 包名');
+      return;
+    }
+    setError('');
+    window.launcher
+      .installNpmPlugin(spec)
+      .then((info) => {
+        return window.launcher.listPlugins().then((list) => {
+          setPlugins(list);
+          setSelectedId(info.id);
+          setNpmSpec('');
+        });
+      })
+      .catch((e: unknown) =>
+        setError(e instanceof Error ? e.message : 'npm 安装失败'),
       );
   };
 
@@ -384,14 +414,34 @@ export function Plugins(): JSX.Element {
             <code className="rounded bg-muted px-1">.orcpkg</code>）。
           </p>
         </div>
-        <Button
-          variant="outline"
-          className="h-8 shrink-0 gap-1.5"
-          onClick={install}
-        >
-          <PackagePlus className="h-3.5 w-3.5" />
-          安装插件…
-        </Button>
+        <div className="flex shrink-0 gap-2">
+          <Button
+            variant="outline"
+            className="h-8 gap-1.5"
+            onClick={install}
+          >
+            <PackagePlus className="h-3.5 w-3.5" />
+            安装包…
+          </Button>
+          <Button
+            variant="outline"
+            className="h-8 gap-1.5"
+            onClick={installFromNpm}
+          >
+            <SquarePlus className="h-3.5 w-3.5" />
+            安装 npm
+          </Button>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <Input
+          value={npmSpec}
+          onChange={(e) => setNpmSpec(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && installFromNpm()}
+          placeholder="npm 包名，例如 rubick-system-feature 或 @scope/plugin"
+          className="h-8 max-w-md"
+        />
       </div>
 
       {error && (

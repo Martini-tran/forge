@@ -3,6 +3,10 @@ import type { SettingsSnapshot } from "../shared/Settings";
 import type { PluginInfo } from "../shared/PluginInfo";
 import type { PluginConfigValues } from "../shared/PluginConfig";
 import type { SearchResult } from "../shared/SearchResult";
+import type {
+  BackendFetchRequest,
+  BackendFetchResponse,
+} from "../main/backend/fetch";
 
 type NewCustomApp = Omit<CustomApp, "id" | "createdAt">;
 
@@ -19,6 +23,9 @@ declare global {
       resize(height: number): void;
       onAppsUpdated(cb: (apps: AppEntry[]) => void): () => void;
       onShown(cb: () => void): () => void;
+
+      // backend (HTTP proxied through main to avoid CORS)
+      backendFetch(req: BackendFetchRequest): Promise<BackendFetchResponse>;
 
       // settings
       openSettings(): Promise<void>;
@@ -47,6 +54,10 @@ declare global {
       setPluginWindowAlwaysOnTop(on: boolean): Promise<void>;
       setPluginKeywords(id: string, keywords: string): Promise<void>;
       setPluginEnabled(id: string, enabled: boolean): Promise<void>;
+      installPlugin(): Promise<PluginInfo | null>;
+      installNpmPlugin(spec: string): Promise<PluginInfo>;
+      installPluginFromUrl(url: string, sha256?: string): Promise<PluginInfo>;
+      uninstallPlugin(id: string): Promise<void>;
       setPluginOpenInWindow(id: string, on: boolean): Promise<void>;
       setPluginConfig(
         id: string,

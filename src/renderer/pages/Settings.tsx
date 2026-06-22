@@ -1,17 +1,19 @@
 import {JSX, useState} from 'react';
-import { Settings as SettingsIcon, Zap, Puzzle, Info } from 'lucide-react';
+import { Settings as SettingsIcon, Zap, Puzzle, Store, Info } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { SystemSettings } from './settings/SystemSettings';
 import { QuickOpen } from './settings/QuickOpen';
 import { Plugins } from './settings/Plugins';
+import { Market } from './settings/Market';
 import { About } from './settings/About';
 
-type Section = 'system' | 'quickopen' | 'plugins' | 'about';
+type Section = 'system' | 'quickopen' | 'plugins' | 'market' | 'about';
 
 const NAV = [
   { id: 'system' as const, label: '系统设置', icon: SettingsIcon },
   { id: 'quickopen' as const, label: '快捷打开', icon: Zap },
   { id: 'plugins' as const, label: '插件管理', icon: Puzzle },
+  { id: 'market' as const, label: '插件市场', icon: Store },
   { id: 'about' as const, label: '关于作者', icon: Info },
 ];
 
@@ -45,6 +47,7 @@ export function Settings(): JSX.Element {
         {section === 'system' && <SystemSettings />}
         {section === 'quickopen' && <QuickOpen />}
         {section === 'plugins' && <Plugins />}
+        {section === 'market' && <Market />}
         {section === 'about' && <About />}
       </main>
     </div>

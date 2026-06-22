@@ -16,6 +16,7 @@ orccode 常驻后台，通过全局快捷键随时唤起一个无边框、半透
   - `view` 插件：通过 `plugin://` 协议加载自带 HTML 界面，运行在隔离的 `<webview>` 沙箱中，仅能访问受控的 `window.pluginHost` 桥。
   - **独立窗口**：view 插件可分离为独立窗口，支持窗口置顶、记忆尺寸/位置，并可设为「默认在独立窗口打开」。
   - **插件配置**：插件可在 `plugin.json` 中声明配置项（字符串 / 数字 / 布尔 / 下拉），自动渲染为表单；用户设置会持久化并实时回传给插件（主进程与界面双向可读）。
+  - **npm 插件**：支持直接按 npm 包名安装；包内若带 `plugin.json`，会按插件清单加载。
 - **托盘常驻** — 系统托盘菜单提供唤起、设置、开机自启与退出。
 
 ## 🧱 技术栈
@@ -208,6 +209,11 @@ module.exports = {
 - **界面侧** — `window.pluginHost.getConfig()` / `onConfigChanged(cb)`。
 
 完整示例见内置的 `plugins/clipboard` 剪贴板历史插件（view 类型，含主进程 `init`/`rpc`、沙箱 UI、主题适配与三项数字配置）。
+
+## 📦 npm 插件
+
+在「插件管理」里可以直接输入 npm 包名安装，例如 `rubick-system-feature` 或 `@scope/plugin`。
+如果包根目录包含 `plugin.json`，会按本项目的插件模型加载；Rubick 风格的 `plugin.json` 也支持基础字段映射。
 
 ## License / 授权协议
 
