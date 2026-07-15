@@ -28,9 +28,22 @@ const DEFAULT_WIDTH = 720;
 const DEFAULT_HEIGHT = 560;
 const MIN_WIDTH = 320;
 const MIN_HEIGHT = 240;
+// Frameless "floating widget" windows (lyrics-style) may be much smaller — a
+// slim pill that hugs a desktop corner — so they get a lower size floor.
+const FRAMELESS_MIN_WIDTH = 160;
+const FRAMELESS_MIN_HEIGHT = 56;
 
 // One window per plugin: reopening a detached plugin focuses the existing one.
 const pluginWindows = new Map<string, BrowserWindow>();
+
+// Which open windows are frameless "floating widgets" (so the renderer can drop
+// its header chrome and provide its own drag handle). Keyed by BrowserWindow.
+const framelessWindows = new WeakSet<BrowserWindow>();
+
+/** True if a detached plugin window was opened in frameless (widget) mode. */
+export function isFramelessPluginWindow(win: BrowserWindow): boolean {
+  return framelessWindows.has(win);
+}
 
 const boundsKey = (id: string): string => `pluginWindow:${id}:bounds`;
 const onTopKey = (id: string): string => `pluginWindow:${id}:onTop`;
@@ -111,9 +124,16 @@ export async function openPluginWindow(id: string): Promise<void> {
     theme === 'dark' ||
     (theme === 'system' && nativeTheme.shouldUseDarkColors);
 
+  // Frameless + transparent turn the detached window into a lyrics-style
+  // floating widget; both default off so ordinary view plugins are unaffected.
+  const frameless = cfg?.frameless ?? false;
+  const transparent = cfg?.transparent ?? false;
+  const minWidth = frameless ? FRAMELESS_MIN_WIDTH : MIN_WIDTH;
+  const minHeight = frameless ? FRAMELESS_MIN_HEIGHT : MIN_HEIGHT;
+
   const saved = savedBounds(id);
-  const width = saved?.width ?? clampSize(cfg?.width, DEFAULT_WIDTH, MIN_WIDTH);
-  const height = saved?.height ?? clampSize(cfg?.height, DEFAULT_HEIGHT, MIN_HEIGHT);
+  const width = saved?.width ?? clampSize(cfg?.width, DEFAULT_WIDTH, minWidth);
+  const height = saved?.height ?? clampSize(cfg?.height, DEFAULT_HEIGHT, minHeight);
   const onTop = savedOnTop(id) ?? cfg?.alwaysOnTop ?? true;
   const placed = saved && saved.x != null && saved.y != null;
 
@@ -121,13 +141,18 @@ export async function openPluginWindow(id: string): Promise<void> {
     width,
     height,
     ...(placed ? { x: saved.x, y: saved.y } : {}),
-    minWidth: MIN_WIDTH,
-    minHeight: MIN_HEIGHT,
+    minWidth,
+    minHeight,
     show: false,
+    frame: !frameless,
+    transparent,
+    // A transparent window must not paint an opaque backdrop, and drop the OS
+    // drop-shadow (it would frame the transparent area with a grey halo).
+    hasShadow: !transparent,
     title: info?.name ?? 'orccode',
     icon: appIconPath(),
     alwaysOnTop: onTop,
-    backgroundColor: dark ? '#1c1c1c' : '#ffffff',
+    backgroundColor: transparent ? '#00000000' : dark ? '#1c1c1c' : '#ffffff',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       // Hosts the plugin's UI in a <webview>, locked down below.
@@ -138,6 +163,7 @@ export async function openPluginWindow(id: string): Promise<void> {
   win.setMenuBarVisibility(false);
   lockDownPluginWebviews(win);
   pluginWindows.set(id, win);
+  if (frameless) framelessWindows.add(win);
   applyOnTop(win, onTop); // set the on-top level + fullscreen visibility
 
   const route = `/plugin/${encodeURIComponent(id)}`;

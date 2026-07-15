@@ -48,6 +48,7 @@ import {
 import {
   openPluginWindow,
   isPluginWindow,
+  isFramelessPluginWindow,
   getPluginWindowOnTop,
   setPluginWindowAlwaysOnTop,
 } from "../windows/pluginWindow";
@@ -270,12 +271,21 @@ export function registerIpcHandlers(): void {
   ipcMain.handle("pluginWindow:getState", (event) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     return win && isPluginWindow(win)
-      ? { alwaysOnTop: getPluginWindowOnTop(win) }
-      : { alwaysOnTop: false };
+      ? {
+          alwaysOnTop: getPluginWindowOnTop(win),
+          frameless: isFramelessPluginWindow(win),
+        }
+      : { alwaysOnTop: false, frameless: false };
   });
   ipcMain.handle("pluginWindow:setAlwaysOnTop", (event, on: boolean) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (win && isPluginWindow(win)) setPluginWindowAlwaysOnTop(win, on);
+  });
+  // Close the detached window (used by a frameless widget's own close button,
+  // which has no OS titlebar to close it with).
+  ipcMain.handle("pluginWindow:close", (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (win && isPluginWindow(win)) win.close();
   });
 
   // Set a plugin's user-defined search keywords (so it can be searched/opened

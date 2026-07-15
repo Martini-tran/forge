@@ -1,0 +1,6 @@
+Reclaude API key
+
+Usage examples (replace <paste api key here> before running):
+export RECLAUDE_API_KEY='<paste api key here>'
+curl -H "Authorization: Bearer $RECLAUDE_API_KEY" https://www.reclaude.ai/api/v1/orgs
+curl -H "Authorization: Bearer $RECLAUDE_API_KEY" "https://www.reclaude.ai/api/v1/carpool/quota"

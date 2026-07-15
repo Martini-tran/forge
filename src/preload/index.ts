@@ -118,12 +118,17 @@ const launcher = {
   /** Pop a view plugin out into its own detached window. */
   detachPlugin: (id: string): Promise<void> =>
     ipcRenderer.invoke("plugins:detach", id),
-  /** Detached plugin window: current pin (always-on-top) state. */
-  getPluginWindowState: (): Promise<{ alwaysOnTop: boolean }> =>
-    ipcRenderer.invoke("pluginWindow:getState"),
+  /** Detached plugin window: current pin state + whether it's a frameless widget. */
+  getPluginWindowState: (): Promise<{
+    alwaysOnTop: boolean;
+    frameless: boolean;
+  }> => ipcRenderer.invoke("pluginWindow:getState"),
   /** Detached plugin window: pin/unpin above all applications. */
   setPluginWindowAlwaysOnTop: (on: boolean): Promise<void> =>
     ipcRenderer.invoke("pluginWindow:setAlwaysOnTop", on),
+  /** Detached plugin window: close it (for a frameless widget's own button). */
+  closePluginWindow: (): Promise<void> =>
+    ipcRenderer.invoke("pluginWindow:close"),
   /** Set a plugin's user-defined search keywords (empty string clears them). */
   setPluginKeywords: (id: string, keywords: string): Promise<void> =>
     ipcRenderer.invoke("plugins:setKeywords", id, keywords),

@@ -39,11 +39,19 @@ export interface PluginManifest {
    * 独立窗口"). `width`/`height` set the initial size; `alwaysOnTop` starts the
    * window pinned above all applications. The user's runtime changes (the pin
    * toggle, plus moving/resizing) are remembered and take precedence next time.
+   *
+   * `frameless` drops the OS title bar and the launcher's own header chrome,
+   * turning the detached window into a bare "floating widget" (lyrics-style);
+   * `transparent` makes its background see-through so a rounded/pill UI can sit
+   * directly on the desktop. Both default to false, so existing view plugins
+   * keep their normal framed window.
    */
   window?: {
     width?: number;
     height?: number;
     alwaysOnTop?: boolean;
+    frameless?: boolean;
+    transparent?: boolean;
   };
   /**
    * Optional HTTP defaults for the plugin's network requests. Both the plugin's

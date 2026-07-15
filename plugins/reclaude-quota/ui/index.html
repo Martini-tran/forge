@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="zh">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Reclaude 额度</title>
+    <style>
+      /*
+       * Styled after reclaude.ai's own quota card: a white (dark: slate) rounded
+       * card with a title row (users icon · 拼车组织 · 有效 badge · 续订), a 套餐
+       * row, a big amount row, a green progress bar, the reset countdown, and the
+       * subscription expiry. The page background stays transparent so the host's
+       * frameless/transparent window shows the desktop around the rounded card.
+       */
+      :root {
+        color-scheme: light;
+        --fg: oklch(0.21 0.02 250);
+        --muted: oklch(0.55 0.02 250);
+        --faint: oklch(0.68 0.015 250);
+        --card: oklch(1 0 0 / 92%);
+        --card-border: oklch(0.9 0.01 250 / 90%);
+        --track: oklch(0.92 0.01 250);
+        --green: oklch(0.72 0.17 158);
+        --green-strong: oklch(0.6 0.16 158);
+        --badge-bg: oklch(0.94 0.05 158);
+        --badge-fg: oklch(0.5 0.15 158);
+        --btn-border: oklch(0.85 0.02 250);
+        --danger: oklch(0.58 0.2 25);
+        --warn: oklch(0.7 0.16 65);
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --fg: oklch(0.96 0.01 250);
+          --muted: oklch(0.72 0.02 250);
+          --faint: oklch(0.6 0.02 250);
+          --card: oklch(0.24 0.02 255 / 90%);
+          --card-border: oklch(1 0 0 / 10%);
+          --track: oklch(1 0 0 / 12%);
+          --green: oklch(0.74 0.16 158);
+          --green-strong: oklch(0.68 0.16 158);
+          --badge-bg: oklch(0.5 0.12 158 / 25%);
+          --badge-fg: oklch(0.82 0.16 158);
+          --btn-border: oklch(1 0 0 / 18%);
+          --danger: oklch(0.7 0.19 25);
+          --warn: oklch(0.78 0.15 70);
+        }
+      }
+      .light {
+        color-scheme: light;
+        --fg: oklch(0.21 0.02 250);
+        --muted: oklch(0.55 0.02 250);
+        --faint: oklch(0.68 0.015 250);
+        --card: oklch(1 0 0 / 92%);
+        --card-border: oklch(0.9 0.01 250 / 90%);
+        --track: oklch(0.92 0.01 250);
+        --green: oklch(0.72 0.17 158);
+        --green-strong: oklch(0.6 0.16 158);
+        --badge-bg: oklch(0.94 0.05 158);
+        --badge-fg: oklch(0.5 0.15 158);
+        --btn-border: oklch(0.85 0.02 250);
+        --danger: oklch(0.58 0.2 25);
+        --warn: oklch(0.7 0.16 65);
+      }
+      .dark {
+        color-scheme: dark;
+        --fg: oklch(0.96 0.01 250);
+        --muted: oklch(0.72 0.02 250);
+        --faint: oklch(0.6 0.02 250);
+        --card: oklch(0.24 0.02 255 / 90%);
+        --card-border: oklch(1 0 0 / 10%);
+        --track: oklch(1 0 0 / 12%);
+        --green: oklch(0.74 0.16 158);
+        --green-strong: oklch(0.68 0.16 158);
+        --badge-bg: oklch(0.5 0.12 158 / 25%);
+        --badge-fg: oklch(0.82 0.16 158);
+        --btn-border: oklch(1 0 0 / 18%);
+        --danger: oklch(0.7 0.19 25);
+        --warn: oklch(0.78 0.15 70);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: transparent;
+        color: var(--fg);
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+          Arial, sans-serif;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+      body {
+        display: flex;
+        padding: 6px;
+        height: 100vh;
+      }
+      #card {
+        position: relative;
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 11px;
+        padding: 13px 15px 14px;
+        border: 1px solid var(--card-border);
+        border-radius: 14px;
+        background: var(--card);
+        -webkit-backdrop-filter: blur(14px);
+        backdrop-filter: blur(14px);
+        box-shadow: 0 8px 24px oklch(0 0 0 / 16%);
+        overflow: hidden;
+      }
+
+      /* title row */
+      .head {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .head .ico {
+        display: flex;
+        width: 18px;
+        height: 18px;
+        flex: 0 0 auto;
+        color: var(--muted);
+      }
+      .head .ico svg {
+        width: 100%;
+        height: 100%;
+      }
+      .head .title {
+        font-size: 14px;
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .badge {
+        flex: 0 0 auto;
+        margin-left: 4px;
+        padding: 2px 8px;
+        font-size: 11px;
+        font-weight: 600;
+        border-radius: 9999px;
+        background: var(--badge-bg);
+        color: var(--badge-fg);
+      }
+      .badge.bad {
+        background: oklch(0.58 0.2 25 / 15%);
+        color: var(--danger);
+      }
+      .spacer {
+        flex: 1 1 auto;
+      }
+
+      /* generic label / value rows */
+      .row {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      .label {
+        font-size: 12.5px;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      .value {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--fg);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      /* amount row (bigger) */
+      .amount {
+        font-size: 17px;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+      .amount .used {
+        color: var(--fg);
+      }
+      .amount .sep,
+      .amount .quota {
+        color: var(--faint);
+        font-weight: 600;
+      }
+
+      /* progress bar */
+      .track {
+        height: 8px;
+        border-radius: 9999px;
+        background: var(--track);
+        overflow: hidden;
+        margin-top: -2px;
+      }
+      .fill {
+        height: 100%;
+        width: 0%;
+        border-radius: 9999px;
+        background: linear-gradient(90deg, var(--green), var(--green-strong));
+        transition: width 0.45s ease;
+      }
+      .fill.warn {
+        background: var(--warn);
+      }
+      .fill.danger {
+        background: var(--danger);
+      }
+
+      .reset {
+        font-size: 11px;
+        color: var(--faint);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin-top: -3px;
+      }
+
+      .divider {
+        height: 1px;
+        background: var(--card-border);
+        margin: 1px 0;
+      }
+
+      #err {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 1 1 auto;
+        font-size: 12.5px;
+        color: var(--danger);
+        text-align: center;
+        line-height: 1.5;
+        padding: 8px;
+        word-break: break-word;
+      }
+      .hidden {
+        display: none !important;
+      }
+      #card.loading {
+        opacity: 0.6;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="card">
+      <div id="body">
+        <!-- title row -->
+        <div class="head">
+          <span class="ico" id="ico"></span>
+          <span class="title" id="orgTitle">拼车组织</span>
+          <span class="badge" id="badge">有效</span>
+          <span class="spacer"></span>
+        </div>
+
+        <!-- plan row -->
+        <div class="row" id="planRow">
+          <span class="label">套餐</span>
+          <span class="value" id="plan">—</span>
+        </div>
+
+        <!-- quota amount + bar -->
+        <div class="row">
+          <span class="label">5 小时配额(拼车)</span>
+          <span class="amount">
+            <span class="used" id="used">$–</span>
+            <span class="sep">/</span>
+            <span class="quota" id="quota">$–</span>
+          </span>
+        </div>
+        <div class="track"><div class="fill" id="fill"></div></div>
+        <div class="reset" id="reset">—</div>
+
+        <div class="divider"></div>
+
+        <!-- expiry row -->
+        <div class="row">
+          <span class="label">到期时间</span>
+          <span class="value" id="expire">—</span>
+        </div>
+      </div>
+
+      <div id="err" class="hidden"></div>
+    </div>
+    <script src="ui.js"></script>
+  </body>
+</html>

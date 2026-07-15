@@ -1,0 +1,41 @@
+{
+  "id": "reclaude-quota",
+  "name": "Reclaude 额度",
+  "version": "1.0.2",
+  "type": "view",
+  "ui": "ui/index.html",
+  "icon": "icon.svg",
+  "description": "查看 Reclaude 拼车额度用量,可定时刷新并作为桌面悬浮卡片常驻。",
+  "keywords": ["quota", "额度", "reclaude", "用量", "余额", "拼车"],
+  "window": {
+    "width": 320,
+    "height": 232,
+    "alwaysOnTop": true,
+    "frameless": true,
+    "transparent": true
+  },
+  "request": {
+    "baseURL": "https://www.reclaude.ai/api/v1",
+    "timeout": 15000
+  },
+  "config": [
+    {
+      "key": "apiKey",
+      "type": "string",
+      "label": "API Key",
+      "description": "Reclaude API key(rck_ 开头)。可在 https://www.reclaude.ai 获取。",
+      "default": "rck_vA1yd3Q64iOTYT3-MNiRVM1iJGnyr9rMD4aczM3HI8s",
+      "placeholder": "rck_..."
+    },
+    {
+      "key": "refreshSec",
+      "type": "number",
+      "label": "刷新间隔(秒)",
+      "description": "自动刷新额度的间隔(10–600 秒)。",
+      "default": 60,
+      "min": 10,
+      "max": 600,
+      "step": 5
+    }
+  ]
+}
