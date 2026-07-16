@@ -35,6 +35,13 @@ import {
   installPluginFromUrl,
   uninstallPlugin,
 } from "../plugins/install";
+import {
+  getDevState,
+  setDevModeAndReload,
+  addDevPluginDir,
+  removeDevPluginDir,
+  hotReloadDevPlugins,
+} from "../plugins/dev";
 import { PACKAGE_EXT } from "../../shared/PluginPackage";
 import { runPluginHttpRequest } from "../plugins/http";
 import { backendFetch, type BackendFetchRequest } from "../backend/fetch";
@@ -257,6 +264,39 @@ export function registerIpcHandlers(): void {
   ipcMain.handle("plugins:uninstall", (_e, id: string) =>
     uninstallPlugin(id),
   );
+
+  /* ------------------------------------------------- developer mode (dev.ts) */
+
+  // Current developer-mode state for the settings UI.
+  ipcMain.handle("plugins:getDevState", () => getDevState());
+
+  // Toggle developer mode on/off (rebuilds watchers + reloads plugins).
+  ipcMain.handle("plugins:setDevMode", (_e, on: boolean) =>
+    setDevModeAndReload(on),
+  );
+
+  // Pick an external plugin source dir and add it to the dev roots. Returns the
+  // updated dir list, or null if the user cancelled the folder picker.
+  ipcMain.handle("plugins:addDevDir", async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender) ?? undefined;
+    const opts = {
+      title: "选择插件源码目录",
+      properties: ["openDirectory"] as const,
+    };
+    const res = win
+      ? await dialog.showOpenDialog(win, opts)
+      : await dialog.showOpenDialog(opts);
+    if (res.canceled || !res.filePaths[0]) return null;
+    return addDevPluginDir(res.filePaths[0]);
+  });
+
+  // Remove an external dir from the dev roots. Returns the updated dir list.
+  ipcMain.handle("plugins:removeDevDir", (_e, dir: string) =>
+    removeDevPluginDir(dir),
+  );
+
+  // Manual fallback: force a developer-mode hot reload (clear cache + reload).
+  ipcMain.handle("plugins:reloadDev", () => hotReloadDevPlugins());
 
   // Record that a view plugin was opened, so it ranks in "recently used".
   ipcMain.handle("plugins:use", (_e, id: string) => recordUsage(id));

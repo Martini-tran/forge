@@ -10,6 +10,7 @@ import {
 import { pinyinForName } from "../apps/pinyin";
 import { resolvePluginConfig } from "../../shared/PluginConfig";
 import { npmPluginsNodeModulesRoot, userPluginsRoot } from "./paths";
+import { discoverDevPlugins } from "./dev";
 import type {
   NpmPluginManifest,
   PluginManifest,
@@ -99,9 +100,16 @@ function normalizeNpmManifest(raw: NpmPluginManifest): PluginManifest | null {
   };
 }
 
-async function readPluginInfo(
+/**
+ * Read a plugin directory's `plugin.json` into a `PluginInfo` (management state
+ * overlaid). `source` picks the manifest dialect (`npm` normalises Rubick-style
+ * fields) and stamps the origin. Exported so the developer-mode loader
+ * (dev.ts) can reuse the exact same manifest/icon/config resolution for
+ * source-directory plugins. Returns null on a missing/invalid manifest.
+ */
+export async function readPluginInfo(
   dir: string,
-  source: "package" | "npm",
+  source: "package" | "npm" | "dev",
   packageName?: string,
 ): Promise<PluginInfo | null> {
   let manifest: PluginManifest | null;
@@ -126,6 +134,7 @@ async function readPluginInfo(
   const keywords = getPluginKeywords();
   const openInWindow = getPluginOpenInWindow();
   const icon = manifest.icon ? await readIcon(dir, manifest.icon) : undefined;
+  const isDev = source === "dev";
 
   return {
     ...manifest,
@@ -137,7 +146,10 @@ async function readPluginInfo(
     dir,
     source,
     packageName,
-    removable: true,
+    devDir: isDev ? dir : undefined,
+    // Dev plugins live in a source dir the app doesn't own — they can't be
+    // "uninstalled" (deleted from disk); they're removed by dropping the dir.
+    removable: !isDev,
     openInWindow: openInWindow[manifest.id] ?? false,
     configValues: resolvePluginConfig(
       manifest.config,
@@ -205,11 +217,23 @@ async function discoverNpmPlugins(): Promise<PluginInfo[]> {
 }
 
 export async function discoverPlugins(): Promise<PluginInfo[]> {
-  const out = [
+  const installed = [
     ...(await discoverDirectoryPlugins(pluginsRoot())),
     ...(await discoverNpmPlugins()),
   ];
 
+  // Developer-mode plugins loaded straight from source dirs. (dev.ts imports
+  // readPluginInfo from this file — the cycle is fine since both sides only
+  // call across it at runtime, never at module-init time.)
+  const dev = await discoverDevPlugins();
+
+  // Merge with dev winning on id collisions: a source-dir plugin shadows an
+  // installed/npm plugin of the same id, so editing source is what you see.
+  const byId = new Map<string, PluginInfo>();
+  for (const info of installed) byId.set(info.id, info);
+  for (const info of dev) byId.set(info.id, info);
+
+  const out = [...byId.values()];
   out.sort((a, b) => a.name.localeCompare(b.name));
   return out;
 }

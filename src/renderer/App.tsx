@@ -41,6 +41,18 @@ export function App(): JSX.Element {
     return () => wv.removeEventListener("dom-ready", onReady);
   }, [activePlugin]);
 
+  // Developer-mode hot reload: when the active view plugin's source changes,
+  // reload its webview so UI edits take effect without leaving the plugin.
+  useEffect(() => {
+    return window.launcher.onPluginReload((pluginId) => {
+      if (activePlugin?.id !== pluginId) return;
+      const wv = webviewRef.current as unknown as {
+        reload?: () => void;
+      } | null;
+      wv?.reload?.();
+    });
+  }, [activePlugin]);
+
   // Enter a view plugin. When it's set to open in its own window by default,
   // pop the detached window and dismiss the launcher instead of going inline.
   const enterPlugin = useCallback((p: PluginInfo) => {

@@ -10,3 +10,18 @@ export interface SettingsSnapshot {
   /** Whether typing pinyin (full or initials) matches Chinese app names. */
   pinyinSearch: boolean;
 }
+
+/**
+ * Plugin developer-mode state. When on, plugins are loaded straight from their
+ * source directories (no pack/obfuscate/install step) and hot-reloaded on save.
+ * In a dev run (`!app.isPackaged`) the repo's `plugins/` dir is included
+ * automatically; `dirs` holds any extra source dirs the user adds by hand.
+ */
+export interface DevModeState {
+  /** Master switch for developer mode. */
+  devMode: boolean;
+  /** Extra external plugin source directories (absolute paths). */
+  dirs: string[];
+  /** Whether the app is running unpackaged (repo `plugins/` auto-included). */
+  isDev: boolean;
+}

@@ -61,6 +61,20 @@ export function isPluginWindow(win: BrowserWindow): boolean {
   return pluginIdForWindow(win) !== undefined;
 }
 
+/**
+ * Send an IPC message to the host renderer of a plugin's detached window (the
+ * process that owns its `<webview>`), if one is open. Used by developer-mode
+ * hot reload to ask the detached window to reload the plugin's UI.
+ */
+export function notifyPluginWindowHost(
+  pluginId: string,
+  channel: string,
+  ...args: unknown[]
+): void {
+  const win = pluginWindows.get(pluginId);
+  if (win && !win.isDestroyed()) win.webContents.send(channel, ...args);
+}
+
 /** Last saved window bounds for a plugin, or null. */
 function savedBounds(id: string): Partial<Electron.Rectangle> | null {
   const raw = getSetting(boundsKey(id));

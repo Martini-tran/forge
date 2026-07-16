@@ -19,6 +19,7 @@ import {
   sourcePluginsRoot,
   npmPluginsRoot,
 } from "./paths";
+import { getDevMode, isDevRun } from "./dev";
 import {
   validatePackage,
   PACKAGE_EXT,
@@ -342,6 +343,11 @@ export async function seedBundledPlugins(): Promise<void> {
 
 /** Dev-only: copy `plugins/<id>` source dirs into the user dir if missing. */
 async function seedFromSource(): Promise<void> {
+  // When developer mode is on, repo plugins are loaded IN PLACE from source
+  // (see dev.ts) — copying them here would just shadow the live source and
+  // resurrect the "copied once, never updates" trap. Skip the copy entirely.
+  if (isDevRun() && getDevMode()) return;
+
   const src = sourcePluginsRoot();
   let entries;
   try {

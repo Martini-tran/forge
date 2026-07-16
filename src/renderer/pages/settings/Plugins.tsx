@@ -1,12 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   ExternalLink,
+  FolderPlus,
   PackagePlus,
   Puzzle,
+  RefreshCw,
   Search,
   SquarePlus,
   Trash2,
+  X,
 } from 'lucide-react';
+import type { DevModeState } from '../../../shared/Settings';
 import type { PluginInfo } from '../../../shared/PluginInfo';
 import type { PluginConfigField } from '../../../shared/PluginManifest';
 import type { PluginConfigValues } from '../../../shared/PluginConfig';
@@ -194,7 +198,15 @@ function PluginDetail({
               <span className="text-xs text-muted-foreground">
                 v{plugin.version}
               </span>
-              <Badge label={plugin.source === 'npm' ? 'npm' : '本地'} />
+              <Badge
+                label={
+                  plugin.source === 'dev'
+                    ? '开发中'
+                    : plugin.source === 'npm'
+                      ? 'npm'
+                      : '本地'
+                }
+              />
               <Badge label={plugin.type === 'view' ? '视图' : '内联'} />
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
@@ -213,6 +225,17 @@ function PluginDetail({
             {plugin.id}
           </code>
         </div>
+        {plugin.source === 'dev' && plugin.devDir && (
+          <div className="flex gap-2 text-xs">
+            <span className="w-12 shrink-0 text-muted-foreground">源码</span>
+            <code
+              className="truncate rounded bg-muted px-1.5 py-0.5"
+              title={plugin.devDir}
+            >
+              {plugin.devDir}
+            </code>
+          </div>
+        )}
       </div>
 
       {/* Scrollable config region: keywords, window options, config form. */}
@@ -293,12 +316,23 @@ export function Plugins(): JSX.Element {
   const [filter, setFilter] = useState('');
   const [error, setError] = useState('');
   const [npmSpec, setNpmSpec] = useState('');
+  const [dev, setDev] = useState<DevModeState | null>(null);
 
-  useEffect(() => {
+  // Refresh the plugin list (used on mount and after a dev hot reload).
+  const refreshList = () =>
     window.launcher.listPlugins().then((list) => {
       setPlugins(list);
       setSelectedId((cur) => cur ?? list[0]?.id ?? null);
     });
+
+  useEffect(() => {
+    void refreshList();
+    window.launcher.getPluginDevState().then(setDev);
+    // Live-refresh when developer mode hot-reloads a source plugin.
+    const off = window.launcher.onPluginsChanged(() => {
+      void refreshList();
+    });
+    return off;
   }, []);
 
   // Install from a user-picked .orcpkg; select the newly installed plugin.
@@ -404,6 +438,57 @@ export function Plugins(): JSX.Element {
     });
   };
 
+  /* --------------------------------------------------------- developer mode */
+
+  const toggleDevMode = (on: boolean) => {
+    setError('');
+    setDev((d) => (d ? { ...d, devMode: on } : d)); // optimistic
+    window.launcher
+      .setPluginDevMode(on)
+      .then(() => window.launcher.getPluginDevState().then(setDev))
+      .then(refreshList)
+      .catch((e: unknown) =>
+        setError(e instanceof Error ? e.message : '切换开发者模式失败'),
+      );
+  };
+
+  const addDevDir = () => {
+    setError('');
+    window.launcher
+      .addDevPluginDir()
+      .then((dirs) => {
+        if (!dirs) return; // cancelled
+        setDev((d) => (d ? { ...d, dirs } : d));
+        return refreshList();
+      })
+      .catch((e: unknown) =>
+        setError(e instanceof Error ? e.message : '添加目录失败'),
+      );
+  };
+
+  const removeDevDir = (dir: string) => {
+    setError('');
+    window.launcher
+      .removeDevPluginDir(dir)
+      .then((dirs) => {
+        setDev((d) => (d ? { ...d, dirs } : d));
+        return refreshList();
+      })
+      .catch((e: unknown) =>
+        setError(e instanceof Error ? e.message : '移除目录失败'),
+      );
+  };
+
+  const reloadDev = () => {
+    setError('');
+    window.launcher
+      .reloadDevPlugins()
+      .then(refreshList)
+      .catch((e: unknown) =>
+        setError(e instanceof Error ? e.message : '重新加载失败'),
+      );
+  };
+
   return (
     <div className="space-y-3">
       <div className="flex items-start justify-between gap-3">
@@ -443,6 +528,83 @@ export function Plugins(): JSX.Element {
           className="h-8 max-w-md"
         />
       </div>
+
+      {/* Developer mode: load plugins straight from source dirs + hot reload. */}
+      {dev && (
+        <div className="space-y-3 rounded-lg border border-border p-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold">开发者模式</span>
+                <Badge label="免打包" />
+              </div>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                直接从源码目录加载插件,无需打包成{' '}
+                <code className="rounded bg-muted px-1">.orcpkg</code>
+                ;修改源码保存后自动热重载。
+              </p>
+            </div>
+            <Switch checked={dev.devMode} onCheckedChange={toggleDevMode} />
+          </div>
+
+          {dev.devMode && (
+            <div className="space-y-2 border-t border-border pt-3">
+              {dev.isDev && (
+                <p className="text-[11px] text-muted-foreground">
+                  开发运行中,仓库{' '}
+                  <code className="rounded bg-muted px-1">plugins/</code>{' '}
+                  目录已自动纳入并监听。
+                </p>
+              )}
+
+              {dev.dirs.length > 0 && (
+                <div className="space-y-1">
+                  {dev.dirs.map((d) => (
+                    <div
+                      key={d}
+                      className="flex items-center gap-2 rounded-md bg-muted/60 px-2 py-1"
+                    >
+                      <code
+                        className="min-w-0 flex-1 truncate text-[11px]"
+                        title={d}
+                      >
+                        {d}
+                      </code>
+                      <button
+                        type="button"
+                        onClick={() => removeDevDir(d)}
+                        className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+                        title="移除此目录"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="h-8 gap-1.5"
+                  onClick={addDevDir}
+                >
+                  <FolderPlus className="h-3.5 w-3.5" />
+                  添加目录…
+                </Button>
+                <Button
+                  variant="outline"
+                  className="h-8 gap-1.5"
+                  onClick={reloadDev}
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  重新加载
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {error && (
         <p className="rounded-md border border-red-600/40 bg-red-600/10 px-3 py-2 text-xs text-red-600">

@@ -2,7 +2,7 @@
 // IPC. Runs in an isolated context with contextIsolation enabled.
 import { contextBridge, ipcRenderer } from "electron";
 import type { AppEntry, CustomApp } from "../shared/AppEntry";
-import type { SettingsSnapshot } from "../shared/Settings";
+import type { SettingsSnapshot, DevModeState } from "../shared/Settings";
 import type { PluginInfo } from "../shared/PluginInfo";
 import type { PluginConfigValues } from "../shared/PluginConfig";
 import type { SearchResult } from "../shared/SearchResult";
@@ -146,6 +146,36 @@ const launcher = {
   /** Uninstall a plugin (remove from disk + clear its stored state). */
   uninstallPlugin: (id: string): Promise<void> =>
     ipcRenderer.invoke("plugins:uninstall", id),
+
+  /* ----------------------------------------------------- developer mode */
+
+  /** Current developer-mode state (toggle + external dirs + isDev). */
+  getPluginDevState: (): Promise<DevModeState> =>
+    ipcRenderer.invoke("plugins:getDevState"),
+  /** Toggle developer mode (loads plugins straight from source + hot reload). */
+  setPluginDevMode: (on: boolean): Promise<void> =>
+    ipcRenderer.invoke("plugins:setDevMode", on),
+  /** Pick an external plugin source dir; resolves the updated list, or null if cancelled. */
+  addDevPluginDir: (): Promise<string[] | null> =>
+    ipcRenderer.invoke("plugins:addDevDir"),
+  /** Remove an external plugin source dir; resolves the updated list. */
+  removeDevPluginDir: (dir: string): Promise<string[]> =>
+    ipcRenderer.invoke("plugins:removeDevDir", dir),
+  /** Manual fallback: force a developer-mode hot reload. */
+  reloadDevPlugins: (): Promise<void> =>
+    ipcRenderer.invoke("plugins:reloadDev"),
+  /** Subscribe to the plugin list changing (e.g. after a dev hot reload). */
+  onPluginsChanged: (cb: () => void): (() => void) => {
+    const listener = () => cb();
+    ipcRenderer.on("plugins:changed", listener);
+    return () => ipcRenderer.removeListener("plugins:changed", listener);
+  },
+  /** Subscribe to a request to reload a plugin's webview (dev hot reload). */
+  onPluginReload: (cb: (pluginId: string) => void): (() => void) => {
+    const listener = (_e: unknown, pluginId: string) => cb(pluginId);
+    ipcRenderer.on("plugin:reload", listener);
+    return () => ipcRenderer.removeListener("plugin:reload", listener);
+  },
   /** Toggle whether a view plugin opens in its detached window by default. */
   setPluginOpenInWindow: (id: string, on: boolean): Promise<void> =>
     ipcRenderer.invoke("plugins:setOpenInWindow", id, on),

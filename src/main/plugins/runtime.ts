@@ -23,6 +23,25 @@ import type { SearchResult } from '../../shared/SearchResult';
 // gives us a real Node require that resolves files from disk at runtime.
 const nodeRequire = createRequire(__filename);
 
+/**
+ * Drop cached CommonJS modules whose file path lives under any of `roots` so the
+ * next `loadPlugins()` re-executes their entry files. Node caches required
+ * modules, so without this a developer-mode plugin's code changes would never
+ * take effect on reload. Also clears the `initialized` marks for the given
+ * plugin ids so their `init(ctx)` runs again against the fresh module.
+ */
+export function clearDevPluginModules(roots: string[], ids: string[]): void {
+  if (roots.length === 0 && ids.length === 0) return;
+  const normRoots = roots.map((r) => path.resolve(r) + path.sep);
+  for (const key of Object.keys(nodeRequire.cache)) {
+    const resolved = path.resolve(key);
+    if (normRoots.some((r) => resolved.startsWith(r))) {
+      delete nodeRequire.cache[key];
+    }
+  }
+  for (const id of ids) initialized.delete(id);
+}
+
 let loaded: Plugin[] = [];
 // id → absolute dir for every ENABLED plugin (incl. pure-UI view plugins with
 // no entry module). The `plugin://` protocol uses this to serve assets.

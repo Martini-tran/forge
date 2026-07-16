@@ -15,10 +15,18 @@ export interface PluginInfo extends PluginManifest {
   pinyin: string;
   /** Absolute plugin directory. */
   dir: string;
-  /** How the plugin was installed. */
-  source: 'package' | 'npm';
+  /**
+   * How the plugin was installed. `dev` plugins are loaded straight from a
+   * source directory (developer mode) rather than the installed user dir.
+   */
+  source: 'package' | 'npm' | 'dev';
   /** npm package name when `source === "npm"`. */
   packageName?: string;
+  /**
+   * For `source === "dev"`: the source directory the plugin is loaded from
+   * (same as `dir`), shown in the plugins UI so the developer knows the origin.
+   */
+  devDir?: string;
   /**
    * Whether the plugin can be uninstalled (removed from disk). Currently always
    * true — every plugin, including seeded built-ins, lives in the writable user

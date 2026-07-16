@@ -10,6 +10,7 @@ import { createTray, destroyTray } from "./tray";
 import { initDatabase } from "../core/database";
 import { loadPlugins } from "./plugins/runtime";
 import { seedBundledPlugins } from "./plugins/install";
+import { refreshDevWatchers } from "./plugins/dev";
 import {
   registerPluginSchemes,
   registerPluginProtocol,
@@ -54,7 +55,12 @@ app.on("ready", () => {
   // load them. Done in the background; searches before this resolves return [].
   void seedBundledPlugins()
     .catch((err) => console.error("[plugins] 种子化失败:", err))
-    .finally(() => void loadPlugins());
+    .finally(() => {
+      // Watch developer-mode source dirs (repo plugins/ in a dev run + any the
+      // user added) so edits hot-reload. No-op when developer mode is off.
+      refreshDevWatchers();
+      void loadPlugins();
+    });
 });
 
 // Release global shortcuts and remove the tray icon before exiting.

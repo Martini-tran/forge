@@ -73,6 +73,14 @@ export function PluginWindow(): JSX.Element {
     return () => wv.removeEventListener("dom-ready", onReady);
   }, [plugin]);
 
+  // Developer-mode hot reload: reload this window's webview when its source
+  // plugin changes, so UI edits show up without reopening the window.
+  useEffect(() => {
+    return window.launcher.onPluginReload((pluginId) => {
+      if (pluginId === id) reload();
+    });
+  }, [id]);
+
   if (missing) {
     return (
       <div className="flex h-screen items-center justify-center bg-background text-sm text-muted-foreground">
